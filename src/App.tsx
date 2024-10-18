@@ -15,6 +15,7 @@ function App() {
   const [selectedColumn2, setSelectedColumn2] = useState<string>('');
   const [mergedData, setMergedData] = useState<any[][]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [updateTable, setUpdateTable] = useState<1 | 2>(1);
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>, setFile: React.Dispatch<React.SetStateAction<FileData | null>>) => {
     const file = event.target.files?.[0];
@@ -46,37 +47,47 @@ function App() {
   const processData = useCallback(() => {
     if (file1 && file2 && selectedColumn1 && selectedColumn2) {
       setIsProcessing(true);
-      // 使用存储在本地的数据
-      const storedFile1 = localStorage.getItem('file1');
-      const storedFile2 = localStorage.getItem('file2');
-      if (storedFile1 && storedFile2) {
-        const file1Data = JSON.parse(storedFile1);
-        const file2Data = JSON.parse(storedFile2);
-        const col1Index = file1Data.columns.indexOf(selectedColumn1);
-        const col2Index = file2Data.columns.indexOf(selectedColumn2);
-        const mergedColumn = [...new Set([...file1Data.data.map(row => row[col1Index]), ...file2Data.data.map(row => row[col2Index])])];
-        const result = mergedColumn.map((value, index) => {
-          const row1Index = file1Data.data.findIndex(row => row[col1Index] === value);
-          const row2Index = file2Data.data.findIndex(row => row[col2Index] === value);
-          return [value, row1Index !== -1 ? row1Index + 2 : '', row2Index !== -1 ? row2Index + 2 : ''];
+      const col1Index = file1.columns.indexOf(selectedColumn1);
+      const col2Index = file2.columns.indexOf(selectedColumn2);
+      const result = updateTable === 1 ? file1.data.map((row, index) => {
+        const value = row[col1Index];
+        const row2Index = file2.data.findIndex((row) => row[col2Index] === value);
+        return [...row, row2Index !== -1 ? row2Index + 2 : ''];
+      }) : file2.data.map((row, index) => {
+        const value = row[col2Index];
+        const row1Index = file1.data.findIndex((row) => row[col1Index] === value);
+        return [...row, row1Index !== -1 ? row1Index + 2 : ''];
+      });
+      if (updateTable === 1) {
+        setFile1({
+          ...file1,
+          columns: [...file1.columns, '对比结果'],
+          data: result as any[][],
         });
-        setMergedData(result);
-        setIsProcessing(false);
       } else {
-        // 处理错误情况
-        console.error('无存储在本地的数据');
+        setFile2({
+          ...file2,
+          columns: [...file2.columns, '对比结果'],
+          data: result as any[][],
+        });
       }
+      setIsProcessing(false);
     }
-  }, [file1, file2, selectedColumn1, selectedColumn2]);
+  }, [file1, file2, selectedColumn1, selectedColumn2, updateTable]);
 
   const downloadExcel = useCallback(() => {
-    if (mergedData.length > 0) {
-      const ws = XLSX.utils.aoa_to_sheet([['Merged Column', 'Table 1 Row', 'Table 2 Row'], ...mergedData]);
+    if (updateTable === 1 && file1) {
+      const ws = XLSX.utils.aoa_to_sheet([file1.columns, ...file1.data]);
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Merged Data');
-      XLSX.writeFile(wb, 'merged_data.xlsx');
+      XLSX.utils.book_append_sheet(wb, ws, '表 1');
+      XLSX.writeFile(wb, '表 1.xlsx');
+    } else if (updateTable === 2 && file2) {
+      const ws = XLSX.utils.aoa_to_sheet([file2.columns, ...file2.data]);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, '表 2');
+      XLSX.writeFile(wb, '表 2.xlsx');
     }
-  }, [mergedData]);
+  }, [file1, file2, updateTable]);
 
   const previewData = useMemo(() => {
     if (file1 && file2 && selectedColumn1 && selectedColumn2) {
@@ -146,6 +157,17 @@ function App() {
               {file2?.columns.map((column, index) => (
                 <option key={index} value={column}>{column}</option>
               ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">更新对比结果在表：</label>
+            <select
+              className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+              value={updateTable}
+              onChange={(e) => setUpdateTable(e.target.value as 1 | 2)}
+            >
+              <option value={1}>表 1</option>
+              <option value={2}>表 2</option>
             </select>
           </div>
         </div>
