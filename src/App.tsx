@@ -32,6 +32,12 @@ function App() {
           data: jsonData.slice(1) as any[][],
           columns,
         });
+        // 存储上传的文件
+        localStorage.setItem('file1', JSON.stringify({
+          name: file.name,
+          data: jsonData.slice(1) as any[][],
+          columns,
+        }));
       };
       reader.readAsArrayBuffer(file);
     }
@@ -40,21 +46,26 @@ function App() {
   const processData = useCallback(() => {
     if (file1 && file2 && selectedColumn1 && selectedColumn2) {
       setIsProcessing(true);
-      setTimeout(() => {
-        const col1Index = file1.columns.indexOf(selectedColumn1);
-        const col2Index = file2.columns.indexOf(selectedColumn2);
-
-        const mergedColumn = [...new Set([...file1.data.map(row => row[col1Index]), ...file2.data.map(row => row[col2Index])])];
-        
+      // 使用存储在本地的数据
+      const storedFile1 = localStorage.getItem('file1');
+      const storedFile2 = localStorage.getItem('file2');
+      if (storedFile1 && storedFile2) {
+        const file1Data = JSON.parse(storedFile1);
+        const file2Data = JSON.parse(storedFile2);
+        const col1Index = file1Data.columns.indexOf(selectedColumn1);
+        const col2Index = file2Data.columns.indexOf(selectedColumn2);
+        const mergedColumn = [...new Set([...file1Data.data.map(row => row[col1Index]), ...file2Data.data.map(row => row[col2Index])])];
         const result = mergedColumn.map((value, index) => {
-          const row1Index = file1.data.findIndex(row => row[col1Index] === value);
-          const row2Index = file2.data.findIndex(row => row[col2Index] === value);
+          const row1Index = file1Data.data.findIndex(row => row[col1Index] === value);
+          const row2Index = file2Data.data.findIndex(row => row[col2Index] === value);
           return [value, row1Index !== -1 ? row1Index + 2 : '', row2Index !== -1 ? row2Index + 2 : ''];
         });
-
         setMergedData(result);
         setIsProcessing(false);
-      }, 100); // Simulate processing time
+      } else {
+        // 处理错误情况
+        console.error('无存储在本地的数据');
+      }
     }
   }, [file1, file2, selectedColumn1, selectedColumn2]);
 

@@ -9,5 +9,18 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('Service Worker 注册成功');
+          })
+          .catch(error => {
+            console.error('Service Worker 注册失败：', error);
+          });
+      } else {
+        console.log('浏览器不支持 Service Worker');
+      }
+    </script>
   </body>
 </html>
